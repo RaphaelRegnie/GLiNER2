@@ -5,302 +5,356 @@
 [![PyPI version](https://badge.fury.io/py/gliner2.svg)](https://badge.fury.io/py/gliner2)
 [![Downloads](https://pepy.tech/badge/gliner2)](https://pepy.tech/project/gliner2)
 
-> *Next-generation information extraction for entities, structures, and classification—unified in one efficient model.*
+> *Extract entities, classify text, and parse structured data—all in one efficient model.*
 
-GLiNER2 is a state-of-the-art information extraction library that unifies **Named Entity Recognition (NER)**, **Text Classification**, and **Hierarchical Structure Extraction** into a single, efficient model. Built on transformer architecture, it delivers competitive performance while maintaining CPU efficiency and compact size (205M parameters).
+GLiNER2 revolutionizes information extraction by unifying **Named Entity Recognition**, **Text Classification**, and **Structured Data Extraction** into a single 205M parameter model. Get production-ready results on CPU without complex pipelines or external APIs.
 
-## 🚀 Key Features
+## ✨ Why GLiNER2?
 
-- **🎯 Unified Extraction**: Entities, classification, and structured data in one model
-- **💻 CPU Efficient**: Fast inference on standard hardware without GPU requirements  
-- **📊 Schema-Driven**: Intuitive API for defining complex extraction tasks
-- **🔒 Privacy-First**: Local deployment with no external API dependencies
-- **⚡ Multi-Task**: Combine multiple extraction tasks in a single forward pass
-- **🎨 Flexible**: Support for descriptions, and field types
+- **🎯 One Model, Three Tasks**: Entities, classification, and structured data in a single forward pass
+- **💻 CPU First**: Lightning-fast inference on standard hardware—no GPU required
+- **🛡️ Privacy by Design**: 100% local processing, zero external dependencies
+- **📝 Natural Language Schemas**: Define extraction tasks using plain English descriptions
 
-## 📦 Installation
+## 🚀 Installation & Quick Start
 
 ```bash
 pip install gliner2
 ```
 
-## 🔥 Quick Start
-
 ```python
 from gliner2 import GLiNER2
 
-# Load the model
+# Load model once, use everywhere
 extractor = GLiNER2.from_pretrained("fastino/gliner2-base")
 
-# Extract entities
-text = "Apple CEO Tim Cook announced the iPhone 15 in Cupertino."
-entities = extractor.extract_entities(text, ["company", "person", "product", "location"])
+# Extract entities in one line
+text = "Apple CEO Tim Cook announced iPhone 15 in Cupertino yesterday."
+result = extractor.extract_entities(text, ["company", "person", "product", "location"])
 
-print(entities)
-# Output: {'entities': {'company': ['Apple'], 'person': ['Tim Cook'], 'product': ['iPhone 15'], 'location': ['Cupertino']}}
+print(result)
+# {'entities': {'company': ['Apple'], 'person': ['Tim Cook'], 'product': ['iPhone 15'], 'location': ['Cupertino']}}
 ```
 
 ## 🎯 Core Capabilities
 
-### 1. Named Entity Recognition
-
-Extract entities with natural language descriptions for better accuracy:
+### 1. Entity Extraction
+Extract named entities with optional descriptions for precision:
 
 ```python
-# Simple entity extraction
+# Basic entity extraction
 entities = extractor.extract_entities(
-    "Dr. Sarah Johnson from Stanford published groundbreaking AI research.",
-    ["person", "organization", "field"]
+    "Patient received 400mg ibuprofen for severe headache at 2 PM.",
+    ["medication", "dosage", "symptom", "time"]
 )
-# Output: {'entities': {'person': ['Dr. Sarah Johnson'], 'organization': ['Stanford'], 'field': ['AI research']}}
+# Output: {'entities': {'medication': ['ibuprofen'], 'dosage': ['400mg'], 'symptom': ['severe headache'], 'time': ['2 PM']}}
 
-# With descriptions for better accuracy
+# Enhanced with descriptions for medical accuracy
 entities = extractor.extract_entities(
-    "Patient took 400mg ibuprofen for headache.",
+    "Patient received 400mg ibuprofen for severe headache at 2 PM.",
     {
-        "medication": "Names of drugs and medications",
-        "dosage": "Dosage amounts like '400mg' or '2 tablets'",
-        "symptom": "Medical symptoms or conditions"
+        "medication": "Names of drugs, medications, or pharmaceutical substances",
+        "dosage": "Specific amounts like '400mg', '2 tablets', or '5ml'",
+        "symptom": "Medical symptoms, conditions, or patient complaints",
+        "time": "Time references like '2 PM', 'morning', or 'after lunch'"
     }
 )
-# Output: {'entities': {'medication': ['ibuprofen'], 'dosage': ['400mg'], 'symptom': ['headache']}}
+# Same output but with higher accuracy due to context descriptions
 ```
 
 ### 2. Text Classification
-
-Single-label and multi-label classification with configurable thresholds:
+Single or multi-label classification with configurable confidence:
 
 ```python
-# Simple sentiment classification
+# Sentiment analysis
 result = extractor.classify_text(
-    "This product is amazing! Best purchase ever.",
+    "This laptop has amazing performance but terrible battery life!",
     {"sentiment": ["positive", "negative", "neutral"]}
 )
-# Output: {'sentiment': 'positive'}
+# Output: {'sentiment': 'negative'}
 
-# Multi-label classification with custom threshold
+# Multi-aspect classification
 result = extractor.classify_text(
-    "Great camera but poor battery life.",
+    "Great camera quality, decent performance, but poor battery life.",
     {
         "aspects": {
-            "labels": ["camera", "battery", "display", "performance"],
+            "labels": ["camera", "performance", "battery", "display", "price"],
             "multi_label": True,
             "cls_threshold": 0.4
         }
     }
 )
-# Output: {'aspects': ['camera', 'battery']}
+# Output: {'aspects': ['camera', 'performance', 'battery']}
 ```
 
 ### 3. Structured Data Extraction
-
-Extract complex hierarchical structures with field-level control:
+Parse complex structured information with field-level control:
 
 ```python
-# Extract structured product information
-text = "iPhone 15 Pro costs $999 with 128GB storage, 5G connectivity."
+# Product information extraction
+text = "iPhone 15 Pro Max with 256GB storage, A17 Pro chip, priced at $1199. Available in titanium and black colors."
 
-results = extractor.extract_json(
+result = extractor.extract_json(
     text,
     {
         "product": [
-            "name::str::Product name and model",
-            "price::str::Product cost", 
-            "storage::str::Storage capacity",
-            "features::list::Key product features"
+            "name::str::Full product name and model",
+            "storage::str::Storage capacity like 256GB or 1TB", 
+            "processor::str::Chip or processor information",
+            "price::str::Product price with currency",
+            "colors::list::Available color options"
         ]
     }
 )
-# Output: {'product': [{'name': 'iPhone 15 Pro', 'price': '$999', 'storage': '128GB', 'features': ['5G connectivity']}]}
+# Output: {
+#     'product': [{
+#         'name': 'iPhone 15 Pro Max',
+#         'storage': '256GB', 
+#         'processor': 'A17 Pro chip',
+#         'price': '$1199',
+#         'colors': ['titanium', 'black']
+#     }]
+# }
 
-# Multiple structures in one pass
-results = extractor.extract_json(
-    "Apple Inc. headquarters in Cupertino launched iPhone 15 for $999.",
+# Multiple structured entities
+text = "Apple Inc. headquarters in Cupertino launched iPhone 15 for $999 and MacBook Air for $1299."
+
+result = extractor.extract_json(
+    text,
     {
         "company": [
             "name::str::Company name",
-            "location::str::Company location"
+            "location::str::Company headquarters or office location"
         ],
-        "product": [
-            "name::str::Product name",
-            "price::str::Product price"
+        "products": [
+            "name::str::Product name and model",
+            "price::str::Product retail price"
         ]
     }
 )
-# Output: {'company': [{'name': 'Apple Inc.', 'location': 'Cupertino'}], 'product': [{'name': 'iPhone 15', 'price': '$999'}]}
-```
-
-### 4. Multi-Task Schema Composition
-
-Combine all extraction types in a single, efficient inference:
-
-```python
-# Comprehensive extraction schema
-schema = (extractor.create_schema()
-    # Extract entities
-    .entities(["person", "company", "product", "location"])
-    
-    # Classify sentiment and urgency
-    .classification("sentiment", ["positive", "negative", "neutral"])
-    .classification("urgency", ["low", "medium", "high"])
-    
-    # Extract structured product info
-    .structure("product_info")
-        .field("name", dtype="str")
-        .field("price", dtype="str") 
-        .field("features", dtype="list")
-        .field("category", dtype="str", choices=["electronics", "software", "service"])
-)
-
-# Extract everything in one pass
-text = "Apple CEO Tim Cook announced iPhone 15 for $999. This is exciting news!"
-results = extractor.extract(text, schema)
 # Output: {
-#     'entities': {'person': ['Tim Cook'], 'company': ['Apple'], 'product': ['iPhone 15'], 'location': []},
-#     'sentiment': 'positive',
-#     'urgency': 'medium',
-#     'product_info': [{'name': 'iPhone 15', 'price': '$999', 'features': [], 'category': 'electronics'}]
+#     'company': [{'name': 'Apple Inc.', 'location': 'Cupertino'}],
+#     'products': [
+#         {'name': 'iPhone 15', 'price': '$999'},
+#         {'name': 'MacBook Air', 'price': '$1299'}
+#     ]
 # }
 ```
 
-## 🎨 Advanced Features
-
-### Custom Thresholds and Precision Control
+### 4. Multi-Task Schema Composition
+Combine all extraction types when you need comprehensive analysis:
 
 ```python
+# Use create_schema() for multi-task scenarios
 schema = (extractor.create_schema()
-    .structure("financial_transaction")
-        .field("amount", dtype="str", threshold=0.95)      # High precision for money
-        .field("date", dtype="str", threshold=0.8)         # Medium precision for dates
-        .field("description", dtype="str", threshold=0.6)  # Lower precision for descriptions
+    # Extract key entities
+    .entities({
+        "person": "Names of people, executives, or individuals",
+        "company": "Organization, corporation, or business names", 
+        "product": "Products, services, or offerings mentioned"
+    })
+    
+    # Classify the content
+    .classification("sentiment", ["positive", "negative", "neutral"])
+    .classification("category", ["technology", "business", "finance", "healthcare"])
+    
+    # Extract structured product details
+    .structure("product_info")
+        .field("name", dtype="str")
+        .field("price", dtype="str")
+        .field("features", dtype="list")
+        .field("availability", dtype="str", choices=["in_stock", "pre_order", "sold_out"])
+)
+
+# Comprehensive extraction in one pass
+text = "Apple CEO Tim Cook unveiled the revolutionary iPhone 15 Pro for $999. The device features an A17 Pro chip and titanium design."
+
+results = extractor.extract(text, schema)
+# Output: {
+#     'entities': {
+#         'person': ['Tim Cook'], 
+#         'company': ['Apple'], 
+#         'product': ['iPhone 15 Pro']
+#     },
+#     'sentiment': 'positive',
+#     'category': 'technology', 
+#     'product_info': [{
+#         'name': 'iPhone 15 Pro',
+#         'price': '$999',
+#         'features': ['A17 Pro chip', 'titanium design'],
+#         'availability': 'in_stock'
+#     }]
+# }
+```
+
+## 🏭 Example Usage Scenarios
+
+### Financial Document Processing
+
+```python
+financial_text = """
+Transaction Report: Goldman Sachs processed a $2.5M equity trade for Tesla Inc. 
+on March 15, 2024. Commission: $1,250. Status: Completed.
+"""
+
+# Extract structured financial data
+result = extractor.extract_json(
+    financial_text,
+    {
+        "transaction": [
+            "broker::str::Financial institution or brokerage firm",
+            "amount::str::Transaction amount with currency",
+            "security::str::Stock, bond, or financial instrument",
+            "date::str::Transaction date",
+            "commission::str::Fees or commission charged", 
+            "status::str::Transaction status",
+            "type::[equity|bond|option|future|forex]::str::Type of financial instrument"
+        ]
+    }
+)
+# Output: {
+#     'transaction': [{
+#         'broker': 'Goldman Sachs',
+#         'amount': '$2.5M', 
+#         'security': 'Tesla Inc.',
+#         'date': 'March 15, 2024',
+#         'commission': '$1,250',
+#         'status': 'Completed',
+#         'type': 'equity'
+#     }]
+# }
+```
+
+### Healthcare Information Extraction
+
+```python
+medical_record = """
+Patient: Sarah Johnson, 34, presented with acute chest pain and shortness of breath.
+Prescribed: Lisinopril 10mg daily, Metoprolol 25mg twice daily.
+Follow-up scheduled for next Tuesday.
+"""
+
+result = extractor.extract_json(
+    medical_record,
+    {
+        "patient_info": [
+            "name::str::Patient full name",
+            "age::str::Patient age",
+            "symptoms::list::Reported symptoms or complaints"
+        ],
+        "prescriptions": [
+            "medication::str::Drug or medication name",
+            "dosage::str::Dosage amount and frequency",
+            "frequency::str::How often to take the medication"
+        ]
+    }
+)
+# Output: {
+#     'patient_info': [{
+#         'name': 'Sarah Johnson',
+#         'age': '34',
+#         'symptoms': ['acute chest pain', 'shortness of breath']
+#     }],
+#     'prescriptions': [
+#         {'medication': 'Lisinopril', 'dosage': '10mg', 'frequency': 'daily'},
+#         {'medication': 'Metoprolol', 'dosage': '25mg', 'frequency': 'twice daily'}
+#     ]
+# }
+```
+
+### Legal Contract Analysis
+
+```python
+contract_text = """
+Service Agreement between TechCorp LLC and DataSystems Inc., effective January 1, 2024.
+Monthly fee: $15,000. Contract term: 24 months with automatic renewal.
+Termination clause: 30-day written notice required.
+"""
+
+# Multi-task extraction for comprehensive analysis
+schema = (extractor.create_schema()
+    .entities(["company", "date", "duration", "fee"])
+    .classification("contract_type", ["service", "employment", "nda", "partnership"])
+    .structure("contract_terms")
+        .field("parties", dtype="list")
+        .field("effective_date", dtype="str")
+        .field("monthly_fee", dtype="str")
+        .field("term_length", dtype="str")
+        .field("renewal::[automatic|manual|none]::str::Contract renewal type")
+        .field("termination_notice", dtype="str")
+)
+
+results = extractor.extract(contract_text, schema)
+# Output: {
+#     'entities': {
+#         'company': ['TechCorp LLC', 'DataSystems Inc.'],
+#         'date': ['January 1, 2024'],
+#         'duration': ['24 months'],
+#         'fee': ['$15,000']
+#     },
+#     'contract_type': 'service',
+#     'contract_terms': [{
+#         'parties': ['TechCorp LLC', 'DataSystems Inc.'],
+#         'effective_date': 'January 1, 2024',
+#         'monthly_fee': '$15,000',
+#         'term_length': '24 months', 
+#         'renewal': 'automatic',
+#         'termination_notice': '30-day written notice'
+#     }]
+# }
+```
+
+## ⚙️ Advanced Configuration
+
+### Custom Confidence Thresholds
+
+```python
+# High-precision extraction for critical fields
+result = extractor.extract_json(
+    text,
+    {
+        "financial_data": [
+            "account_number::str::Bank account number",  # default threshold
+            "amount::str::Transaction amount",           # default threshold  
+            "routing_number::str::Bank routing number"   # default threshold
+        ]
+    },
+    threshold=0.9  # High confidence for all fields
+)
+
+# Per-field thresholds using schema builder (for multi-task scenarios)
+schema = (extractor.create_schema()
+    .structure("sensitive_data")
+        .field("ssn", dtype="str", threshold=0.95)         # Highest precision
+        .field("email", dtype="str", threshold=0.8)        # Medium precision  
+        .field("phone", dtype="str", threshold=0.7)        # Lower precision
 )
 ```
 
 ### Field Types and Constraints
 
 ```python
-schema = (extractor.create_schema()
-    .structure("product_review")
-        .field("product", dtype="str")                     # Single value
-        .field("features", dtype="list")                   # Multiple values
-        .field("rating", dtype="str", choices=["1", "2", "3", "4", "5"])  # Constrained choices
-        .field("tags", dtype="list", choices=["recommended", "budget", "premium"])  # Multi-select
+# Structured extraction with choices and types
+result = extractor.extract_json(
+    "Premium subscription at $99/month with mobile and web access.",
+    {
+        "subscription": [
+            "tier::[basic|premium|enterprise]::str::Subscription level",
+            "price::str::Monthly or annual cost",
+            "billing::[monthly|annual]::str::Billing frequency", 
+            "features::[mobile|web|api|analytics]::list::Included features"
+        ]
+    }
 )
-```
-
-## 🏭 Real-World Applications
-
-### Healthcare Information Extraction
-
-```python
-medical_text = "Patient John Smith, 65, visited Dr. Roberts on March 15th for chest pain. Prescribed 50mg aspirin daily."
-
-schema = (extractor.create_schema()
-    .entities({
-        "patient": "Patient names and identifiers",
-        "doctor": "Healthcare provider names", 
-        "medication": "Prescribed drugs and medications",
-        "symptom": "Medical symptoms and conditions"
-    })
-    .classification("urgency", ["low", "medium", "high", "critical"])
-    .structure("prescription")
-        .field("medication", dtype="str")
-        .field("dosage", dtype="str")
-        .field("frequency", dtype="str")
-)
-
-results = extractor.extract(medical_text, schema)
 # Output: {
-#     'entities': {'patient': ['John Smith'], 'doctor': ['Dr. Roberts'], 'medication': ['aspirin'], 'symptom': ['chest pain']},
-#     'urgency': 'medium',
-#     'prescription': [{'medication': 'aspirin', 'dosage': '50mg', 'frequency': 'daily'}]
+#     'subscription': [{
+#         'tier': 'premium',
+#         'price': '$99/month', 
+#         'billing': 'monthly',
+#         'features': ['mobile', 'web']
+#     }]
 # }
 ```
-
-### Legal Document Processing
-
-```python
-legal_text = "Employment Agreement between TechCorp Inc. and Jane Doe, effective January 1, 2024..."
-
-schema = (extractor.create_schema()
-    .entities(["company", "person", "date", "contract_type"])
-    .classification("document_type", ["employment", "service", "nda", "partnership"])
-    .structure("contract_details")
-        .field("parties", dtype="list")
-        .field("effective_date", dtype="str")
-        .field("termination_clause", dtype="str")
-        .field("compensation", dtype="str")
-)
-
-results = extractor.extract(legal_text, schema)
-# Output: {
-#     'entities': {'company': ['TechCorp Inc.'], 'person': ['Jane Doe'], 'date': ['January 1, 2024'], 'contract_type': ['Employment Agreement']},
-#     'document_type': 'employment',
-#     'contract_details': [{'parties': ['TechCorp Inc.', 'Jane Doe'], 'effective_date': 'January 1, 2024', 'termination_clause': '', 'compensation': ''}]
-# }
-```
-
-### E-commerce and Product Analysis
-
-```python
-product_text = "MacBook Pro 16-inch with M3 chip, 32GB RAM, 1TB SSD. Price: $3,499. Great for video editing!"
-
-schema = (extractor.create_schema()
-    .entities(["product", "brand", "price", "specification"])
-    .classification("category", ["laptop", "desktop", "tablet", "phone"])
-    .classification("sentiment", ["positive", "negative", "neutral"])
-    .structure("product_specs")
-        .field("name", dtype="str")
-        .field("processor", dtype="str")
-        .field("memory", dtype="str")
-        .field("storage", dtype="str")
-        .field("use_cases", dtype="list")
-)
-
-results = extractor.extract(product_text, schema)
-# Output: {
-#     'entities': {'product': ['MacBook Pro 16-inch'], 'brand': ['MacBook'], 'price': ['$3,499'], 'specification': ['M3 chip', '32GB RAM', '1TB SSD']},
-#     'category': 'laptop',
-#     'sentiment': 'positive',
-#     'product_specs': [{'name': 'MacBook Pro 16-inch', 'processor': 'M3 chip', 'memory': '32GB RAM', 'storage': '1TB SSD', 'use_cases': ['video editing']}]
-# }
-```
-
-## 🔧 API Reference
-
-### Core Methods
-
-| Method | Description |
-|--------|-------------|
-| `GLiNER2.from_pretrained(model_name)` | Load a pre-trained model |
-| `create_schema()` | Create a new extraction schema |
-| `extract(text, schema, **kwargs)` | Main extraction method |
-| `extract_entities(text, entities, **kwargs)` | Quick entity extraction |
-| `classify_text(text, tasks, **kwargs)` | Quick text classification |
-| `extract_json(text, structures, **kwargs)` | Quick structured extraction |
-
-## 📊 Performance
-
-GLiNER2 achieves competitive performance across diverse tasks while maintaining efficiency:
-
-| Task | Dataset | GLiNER2 | GPT-4o | Baseline |
-|------|---------|---------|---------|----------|
-| NER | CrossNER | 0.590 | 0.589 | 0.615 |
-| Classification | SNIPS | 0.83 | 0.97 | 0.77 |
-| Classification | Banking77 | 0.70 | 0.78 | 0.42 |
-| Classification | SST-2 | 0.86 | 0.94 | 0.92 |
-
-**Speed Comparison**: 3.25× faster than GPT-4o while running on CPU
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## 📄 License
 
@@ -311,22 +365,24 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 If you use GLiNER2 in your research, please cite:
 
 ```bibtex
-@article{zaratiana2024gliner2,
-  title={GLiNER2: Schema-Driven Multi-Task Learning for Structured Information Extraction},
-  author={Zaratiana, Urchade and Pasternak, Gil and Boyd, Oliver and Hurn-Maloney, George and Lewis, Ash},
-  journal={arXiv preprint arXiv:2024.xxxxx},
-  year={2024}
+@misc{zaratiana2025gliner2efficientmultitaskinformation,
+      title={GLiNER2: An Efficient Multi-Task Information Extraction System with Schema-Driven Interface}, 
+      author={Urchade Zaratiana and Gil Pasternak and Oliver Boyd and George Hurn-Maloney and Ash Lewis},
+      year={2025},
+      eprint={2507.18546},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2507.18546}, 
 }
 ```
 
 ## 🙏 Acknowledgments
 
-- Built upon the original [GLiNER](https://github.com/urchade/GLiNER) architecture
-- Developed by the team at [Fastino AI](https://fastino.ai)
-- Thanks to the open-source community for feedback and contributions
+Built upon the original [GLiNER](https://github.com/urchade/GLiNER) architecture by the team at [Fastino AI](https://fastino.ai).
+
 ---
 
 <div align="center">
-    <strong>Built with ❤️ by the Fastino AI team</strong><br>
-    <em>Making advanced information extraction accessible to everyone</em>
+    <strong>Ready to extract insights from your data?</strong><br>
+    <code>pip install gliner2</code>
 </div>
