@@ -13,8 +13,7 @@ GLiNER2 unifies **Named Entity Recognition**, **Text Classification**, and **Str
 
 - **🎯 One Model, Three Tasks**: Entities, classification, and structured data in a single forward pass
 - **💻 CPU First**: Lightning-fast inference on standard hardware—no GPU required
-- **🛡️ Privacy by Design**: 100% local processing, zero external dependencies
-- **📝 Natural Language Schemas**: Define extraction tasks using plain English descriptions
+- **🛡️ Privacy**: 100% local processing, zero external dependencies
 
 ## 🚀 Installation & Quick Start
 
