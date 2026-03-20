@@ -486,11 +486,49 @@ class Extractor(PreTrainedModel):
         batch_size = len(token_embs_list)
         hidden = token_embs_list[0].shape[-1]
 
-        # Pad token embeddings -> (batch, max_text_len, hidden)
+        # Pad variable-length list into a single dense tensor (stays eager
+        # so torch.compile doesn't guard on per-element shapes).
         padded = torch.zeros(batch_size, max_text_len, hidden,
                              device=device, dtype=token_embs_list[0].dtype)
         for i, emb in enumerate(token_embs_list):
             padded[i, :text_lengths[i]] = emb
+
+        text_len_t = torch.tensor(text_lengths, device=device)
+
+        # Dense tensor path — safe for torch.compile
+        span_rep, safe_spans, span_mask = self._compute_span_rep_core(
+            padded, text_len_t,
+        )
+
+        # Unpack per-sample results (Python dicts, stays eager)
+        results = []
+        for i in range(batch_size):
+            tl = text_lengths[i]
+            results.append({
+                "span_rep": span_rep[i, :tl, :, :],
+                "spans_idx": safe_spans[i:i+1, :, :],
+                "span_mask": span_mask[i:i+1, :],
+            })
+        return results
+
+    def _compute_span_rep_core(
+            self,
+            padded: torch.Tensor,
+            text_len_t: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Dense-tensor span computation (compile-friendly).
+
+        Args:
+            padded: (batch, max_text_len, hidden) — padded token embeddings
+            text_len_t: (batch,) — actual text lengths per sample
+
+        Returns:
+            span_rep: (batch, max_text_len, max_width, hidden)
+            safe_spans: (batch, N, 2)
+            span_mask: (batch, N) — True for invalid
+        """
+        batch_size, max_text_len, _ = padded.shape
+        device = padded.device
 
         # Vectorized span indices for max_text_len
         starts = torch.arange(max_text_len, device=device).unsqueeze(1).expand(-1, self.max_width)
@@ -498,7 +536,6 @@ class Extractor(PreTrainedModel):
         ends = starts + offsets  # (max_text_len, max_width)
 
         # Per-sample validity: span (i, i+j) valid iff i+j < text_lengths[sample]
-        text_len_t = torch.tensor(text_lengths, device=device)
         ends_expanded = ends.unsqueeze(0).expand(batch_size, -1, -1)
         valid = ends_expanded < text_len_t.view(-1, 1, 1)
 
@@ -514,16 +551,7 @@ class Extractor(PreTrainedModel):
         # Single batched forward pass through SpanMarkerV0
         span_rep = self.span_rep(padded, safe_spans)  # (batch, max_text_len, max_width, hidden)
 
-        # Unpack per-sample results
-        results = []
-        for i in range(batch_size):
-            tl = text_lengths[i]
-            results.append({
-                "span_rep": span_rep[i, :tl, :, :],
-                "spans_idx": safe_spans[i:i+1, :, :],
-                "span_mask": span_mask[i:i+1, :],
-            })
-        return results
+        return span_rep, safe_spans, span_mask
 
     def compute_struct_loss(
             self,
@@ -707,12 +735,10 @@ class Extractor(PreTrainedModel):
         Only the two heaviest tensor subgraphs are compiled:
 
         - **encoder** (DeBERTa backbone, 584 ops, 0 graph breaks)
-        - **compute_span_rep_batched** (span MLP, 0 graph breaks)
+        - **_compute_span_rep_core** (span index + MLP, 0 graph breaks)
 
-        The per-sample Python decode path (count prediction, span
-        extraction, result formatting) is left in eager mode because it
-        contains inherent graph breaks (data-dependent shapes, GRU,
-        Python-level sorting).
+        The list-of-tensors padding in ``compute_span_rep_batched`` and the
+        per-sample Python decode path are left in eager mode.
 
         The first call triggers tracing and is slow; subsequent calls
         with similar shapes use the cached compiled graph.
@@ -727,8 +753,8 @@ class Extractor(PreTrainedModel):
             model.compile()
         """
         self.encoder = torch.compile(self.encoder, dynamic=True)
-        self.compute_span_rep_batched = torch.compile(
-            self.compute_span_rep_batched, dynamic=True,
+        self._compute_span_rep_core = torch.compile(
+            self._compute_span_rep_core, dynamic=True,
         )
         logger.info("Compiled encoder and span-rep with torch.compile(dynamic=True)")
         return self
