@@ -473,6 +473,29 @@ class SchemaTransformer:
         batch.record_specs = record_specs
         return batch
 
+    def transform_record(
+        self, text: str, schema: Any, max_len: Optional[int] = None
+    ) -> TransformedRecord:
+        """Public single-record transform.
+
+        Returns the same ``TransformedRecord`` as the collate path, so a
+        server can preprocess one request without calling a private method.
+
+        Args:
+            text: Input text.
+            schema: Schema dict, or an object with ``build()`` / ``schema``.
+            max_len: Optional word-token cap, matching ``collate_fn_inference``.
+
+        Returns:
+            TransformedRecord ready for batching or serving.
+        """
+        if hasattr(schema, "build"):
+            schema = schema.build()
+        elif hasattr(schema, "schema"):
+            schema = schema.schema
+        record = {"text": text, "schema": copy.deepcopy(schema)}
+        return self._transform_record(record, max_len=max_len)
+
     def transform_and_format(self, text: str, schema: Dict[str, Any]) -> TransformedRecord:
         """
         Transform and format a single record.
@@ -487,8 +510,7 @@ class SchemaTransformer:
         Returns:
             TransformedRecord ready for batching
         """
-        record = {"text": text, "schema": copy.deepcopy(schema)}
-        return self._transform_record(record)
+        return self.transform_record(text, schema)
 
     # =========================================================================
     # Internal: Batch Processing

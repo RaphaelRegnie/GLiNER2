@@ -620,3 +620,44 @@ class TestErrorPolicies:
         processor.is_training = False
         with pytest.raises(ValueError, match="boom"):
             processor.collate_fn_inference([("x.", {"entities": {"x": []}})], error_policy="raise")
+
+
+# ===========================================================================
+# Public single-record transform + tokenization cache
+# ===========================================================================
+
+
+class TestTransformRecord:
+    def test_transform_record_matches_private_path(self, processor):
+        text = "John Smith lives in New York City."
+        schema = {"entities": {"person": [], "location": []}}
+        public = processor.transform_record(text, schema)
+        private = processor._transform_record({"text": text, "schema": schema.copy()})
+        assert public.input_ids == private.input_ids
+        assert public.text_tokens == private.text_tokens
+        assert public.task_types == private.task_types
+
+    def test_transform_record_honors_max_len(self, processor):
+        text = "one two three four five six seven eight nine ten."
+        schema = {"entities": {"number": []}}
+        record = processor.transform_record(text, schema, max_len=3)
+        assert len(record.text_tokens) == 3
+
+    def test_transform_and_format_delegates(self, processor):
+        text = "hello world."
+        schema = {"entities": {"x": []}}
+        a = processor.transform_and_format(text, schema)
+        b = processor.transform_record(text, schema)
+        assert a.input_ids == b.input_ids
+
+
+class TestTokenizationCache:
+    def test_repeated_schema_hits_tokenize_cache(self, processor):
+        schema = {"entities": {"person": [], "location": []}}
+        processor._tokenize_cached.cache_clear()
+        processor.transform_record("Alice met Bob.", schema)
+        after_first = processor._tokenize_cached.cache_info()
+        processor.transform_record("Carol met Dave.", schema)
+        after_second = processor._tokenize_cached.cache_info()
+        assert after_second.hits > after_first.hits
+        assert after_second.currsize >= after_first.currsize
