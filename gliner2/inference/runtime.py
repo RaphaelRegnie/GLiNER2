@@ -35,7 +35,6 @@ from gliner2.processor import PreprocessedBatch
 from gliner2.inference.chunking import merge_chunk_results, split_text_into_chunks
 from gliner2.processing.word_splitter import word_splitter_from
 from gliner2.inference.overlap import normalize_overlap_policy
-from gliner2.training.trainer import ExtractorCollator
 from gliner2.inference.candidate_decoder import finalize_spans
 
 if TYPE_CHECKING:
@@ -115,6 +114,9 @@ class ExtractorRuntimeMixin:
         dataset = list(zip(texts, schema_dicts))
 
         from torch.utils.data import DataLoader
+
+        # Lazy: trainer.py imports peft, which serving images do not install.
+        from gliner2.training.trainer import ExtractorCollator
 
         if max_len is None:
             if getattr(self, "_inference_collator", None) is None:
