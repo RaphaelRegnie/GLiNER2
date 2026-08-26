@@ -452,10 +452,10 @@ class TestSchemaTransformerE2E:
         }
         processor_no_sampling.is_training = False
         record = processor_no_sampling.transform_and_format(text, schema)
-
         assert record.task_types[0] == "classifications"
-        # Boolean label vector
-        assert record.structure_labels[0] == [1, 0]
+        assert record.structure_labels[0] == [0, 0]
+        gold = processor_no_sampling.transform_and_format(text, schema, build_targets=True)
+        assert gold.structure_labels[0] == [1, 0]
 
     def test_collate_padding(self, processor):
         """Shorter sequences should be zero-padded to the longest."""
@@ -594,11 +594,11 @@ class TestErrorPolicies:
         calls = [0]
         orig = processor._transform_record
 
-        def fail_first(record, max_len=None):
+        def fail_first(record, max_len=None, **kwargs):
             calls[0] += 1
             if calls[0] == 1:
                 raise ValueError("bad record")
-            return orig(record, max_len=max_len)
+            return orig(record, max_len=max_len, **kwargs)
 
         monkeypatch.setattr(processor, "_transform_record", fail_first)
         processor.is_training = False

@@ -66,52 +66,45 @@ def test_compiled_schema_survives_real_processor(processor):
         assert _l_names(task_tokens) == list(spec.label_names)
 
 
-# ---- T-P2 : missing true_label caught by compiler AND fatal to processor
+# ---- T-P2 : inference does not read true_label; training does ----------
+
+_NO_TRUE_LABEL = {
+    "json_structures": [],
+    "entities": {},
+    "relations": [],
+    "json_descriptions": {},
+    "entity_descriptions": {},
+    "classifications": [
+        {
+            "task": "intent",
+            "labels": ["a", "b"],
+            "multi_label": False,
+            "cls_threshold": 0.5,
+            "class_act": "auto",
+        }
+    ],
+}
 
 
-def test_missing_true_label_is_caught_by_assert():
-    model = {
-        "json_structures": [],
-        "entities": {},
-        "relations": [],
-        "json_descriptions": {},
-        "entity_descriptions": {},
-        "classifications": [
-            {
-                "task": "intent",
-                "labels": ["a", "b"],
-                "multi_label": False,
-                "cls_threshold": 0.5,
-                "class_act": "auto",
-            }
-        ],
-    }
-    with pytest.raises(SchemaError, match="true_label"):
-        _assert_model_schema(model)
-
-
-def test_missing_true_label_silently_falls_back_in_processor(processor):
-    model = {
-        "json_structures": [],
-        "entities": {},
-        "relations": [],
-        "json_descriptions": {},
-        "entity_descriptions": {},
-        "classifications": [
-            {
-                "task": "intent",
-                "labels": ["a", "b"],
-                "multi_label": False,
-                "cls_threshold": 0.5,
-                "class_act": "auto",
-            }
-        ],
-    }
-    batch = processor.collate_fn_inference([("hello", model)])
-    # documents *why* the assertion exists: the processor swallows the KeyError.
-    assert batch.task_types[0] == ["entities"]
+def test_classification_inference_without_true_label_collates(processor):
+    batch = processor.collate_fn_inference([("hello", _NO_TRUE_LABEL)], error_policy="raise")
+    assert batch.task_types[0] == ["classifications"]
+    assert batch.structure_labels[0] == [[0, 0]]
     flat = [tok for task_tokens in batch.schema_tokens_list[0] for tok in task_tokens]
-    assert "dummy" in flat
+    assert "dummy" not in flat
+
+
+def test_missing_true_label_is_not_required_by_assert():
+    _assert_model_schema(_NO_TRUE_LABEL)
+
+
+def test_missing_true_label_raises_when_targets_are_requested(processor):
+    with pytest.raises(SchemaError, match="true_label"):
+        processor.collate_fn_inference(
+            [("hello", _NO_TRUE_LABEL)], error_policy="raise", build_targets=True
+        )
+    with pytest.raises(SchemaError, match="true_label"):
+        processor.collate_fn_train([("hello", _NO_TRUE_LABEL)], error_policy="raise")
 
 
 # ---- T-P4 : instruction -> prompt, resolves back -----------------------
@@ -226,7 +219,6 @@ def test_assert_rejects_reserved_token_in_emission():
             {
                 "task": "intent",
                 "labels": ["a", "b[L]bad"],
-                "true_label": ["N/A"],
                 "multi_label": False,
                 "cls_threshold": 0.5,
                 "class_act": "auto",
