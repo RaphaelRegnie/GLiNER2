@@ -107,6 +107,39 @@ def test_missing_true_label_raises_when_targets_are_requested(processor):
         processor.collate_fn_train([("hello", _NO_TRUE_LABEL)], error_policy="raise")
 
 
+def test_training_gold_comes_from_the_dataset(processor):
+    """Training examples carry true_label themselves, not from the compiler."""
+    from gliner2.training.data import Classification, InputExample
+
+    record = InputExample(
+        text="hello",
+        classifications=[Classification(task="intent", labels=["a", "b"], true_label="b")],
+    ).to_dict()
+    schema = record["output"]
+    assert schema["classifications"][0]["true_label"] == ["b"]
+
+    batch = processor.collate_fn_train([(record["input"], schema)], error_policy="raise")
+    assert batch.structure_labels[0] == [[0, 1]]
+
+
+def test_compiled_schema_collates_with_targets_once_gold_is_attached(processor):
+    """compile -> attach dataset gold -> collate(build_targets=True)."""
+    model = compile_schema(_basic()).build()
+    assert all("true_label" not in c for c in model["classifications"])
+
+    gold = {"intent": ["write"], "effects": ["modify"], "risk": ["low"]}
+    for entry in model["classifications"]:
+        entry["true_label"] = gold[entry["task"]]
+
+    batch = processor.collate_fn_inference(
+        [("hello", model)], error_policy="raise", build_targets=True
+    )
+    for task_labels, entry in zip(batch.structure_labels[0], model["classifications"]):
+        expected = [1 if name in entry["true_label"] else 0 for name in entry["labels"]]
+        assert task_labels == expected
+        assert sum(task_labels) == 1
+
+
 # ---- T-P4 : instruction -> prompt, resolves back -----------------------
 
 

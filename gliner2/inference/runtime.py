@@ -41,6 +41,11 @@ if TYPE_CHECKING:
     from gliner2.api_client import GLiNER2API
 
 
+def _is_score(value: object) -> bool:
+    """True for a confidence scalar, excluding bools."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def _format_classification(value: object, include_confidence: bool) -> object:
     """Format a single- or multi-label classification, including JSON lists.
 
@@ -57,8 +62,10 @@ def _format_classification(value: object, include_confidence: bool) -> object:
             if include_confidence:
                 return [{"label": item[0], "confidence": item[1]} for item in value]
             return [item[0] for item in value]
-        if len(value) >= 2 and not isinstance(first, dict):
-            label, conf = value[0], value[1]
+        # A pair is only a (label, score) if the score is numeric; a
+        # two-label list stays a list.
+        if len(value) == 2 and isinstance(first, str) and _is_score(value[1]):
+            label, conf = value
             return {"label": label, "confidence": conf} if include_confidence else label
     return value
 
@@ -66,8 +73,8 @@ def _format_classification(value: object, include_confidence: bool) -> object:
 def format_results(
     results: Dict,
     include_confidence: bool = False,
-    requested_relations: List[str] = None,
-    classification_tasks: List[str] = None,
+    requested_relations: Optional[List[str]] = None,
+    classification_tasks: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Format extraction results into the public AutoExtractor payload."""
     formatted = {}
@@ -1212,8 +1219,8 @@ class ExtractorRuntimeMixin:
         self,
         results: Dict,
         include_confidence: bool = False,
-        requested_relations: List[str] = None,
-        classification_tasks: List[str] = None,
+        requested_relations: Optional[List[str]] = None,
+        classification_tasks: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Format extraction results."""
         return format_results(
